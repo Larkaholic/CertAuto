@@ -1,27 +1,8 @@
-"use server";
+"use client";
 
 import FeedbackForm from './components/user/feedbackForm';
 import React, { useTransition } from 'react';
-
-const TARGET_EMAIL = 'orillos.lark@gmail.com';
-const imageBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANS...';
-
-// Server action for sending emails
-async function sendBulkEmails() {
-  "use server";
-  const { Resend } = require('resend');
-  const resend = new Resend(process.env.RESEND_API_KEY);
-
-  const promises = Array.from({ length: 100 }).map((_, idx) =>
-    resend.emails.send({
-      from: 'Your Name <onboarding@resend.dev>',
-      to: TARGET_EMAIL,
-      subject: `Test Email #${idx + 1}`,
-      html: `<p>This is test email #${idx + 1}.</p><img src="${imageBase64}" alt="Image" />`,
-    })
-  );
-  await Promise.all(promises);
-}
+import { sendBulkEmails } from './sendBulkEmails';
 
 export default function Home() {
   const [isPending, startTransition] = useTransition();
