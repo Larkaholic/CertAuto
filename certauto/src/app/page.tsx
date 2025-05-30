@@ -3,12 +3,18 @@
 import FeedbackForm from './components/user/feedbackForm';
 import React, { useTransition } from 'react';
 import { sendBulkEmails } from './sendBulkEmails';
+import dynamic from 'next/dynamic';
+
+const KonvaDemo = dynamic(() => import('./konvaDemo'), { ssr: false });
 
 export default function Home() {
   const [isPending, startTransition] = useTransition();
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+    <main
+      className="flex min-h-screen flex-col items-center justify-between p-24"
+      style={{ background: "#fff" }}
+    >
       <h1 className="text-4xl font-bold">Welcome to CertAuto</h1>
       <p className="mt-4 text-lg">Your automated certificate management solution.</p>
       <button
@@ -18,6 +24,7 @@ export default function Home() {
       >
         {isPending ? "Sending..." : "Test Bulk Email Send"}
       </button>
+      <KonvaDemo />
       <FeedbackForm />
     </main>
   );
