@@ -1,6 +1,7 @@
 "use client";
 import React, { useRef, useState } from 'react';
 import { Stage, Layer, Text, Image as KonvaImage } from 'react-konva';
+import { sendBulkEmails } from './sendBulkEmails';
 
 const STAGE_WIDTH = 400;
 const STAGE_HEIGHT = 300;
@@ -10,6 +11,8 @@ const KonvaDemo: React.FC = () => {
   const [stageText, setStageText] = useState<string>('Hello Konva!');
   const [textX, setTextX] = useState<number>(150);
   const [textY, setTextY] = useState<number>(200);
+  const [isSending, setIsSending] = useState<boolean>(false);
+  const [sendStatus, setSendStatus] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<any>(null);
 
@@ -25,13 +28,40 @@ const KonvaDemo: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleExport = () => {
-    if (stageRef.current) {
-      const uri = stageRef.current.toDataURL({ pixelRatio: 2 });
-      const link = document.createElement('a');
-      link.download = 'certificate.png';
-      link.href = uri;
-      link.click();
+  const handleSendAll = async () => {
+    if (!stageRef.current) {
+      setSendStatus('No canvas to render');
+      return;
+    }
+    
+    try {
+      setIsSending(true);
+      setSendStatus('Generating certificate image...');
+      
+      // Convert the Konva stage to a data URL
+      const certificateDataUrl = stageRef.current.toDataURL({ pixelRatio: 2 });
+      
+      // Log image data to debug
+      console.log("Certificate image data length:", certificateDataUrl.length);
+      console.log("Certificate image data starts with:", certificateDataUrl.substring(0, 50));
+      
+      setSendStatus('Sending certificates to test email...');
+      
+      // Use the server action to send bulk emails with the certificate
+      const result = await sendBulkEmails(certificateDataUrl);
+      
+      // Handle response based on success/failure
+      if (result.success) {
+        setSendStatus(`Success: ${result.message}`);
+      } else {
+        setSendStatus(`Error: ${result.message}`);
+        console.error("Server returned error:", result.message);
+      }
+    } catch (error) {
+      console.error("Error in handleSendAll:", error);
+      setSendStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -75,13 +105,23 @@ const KonvaDemo: React.FC = () => {
           />
         </label>
         <button
-          onClick={handleExport}
-          style={{ marginLeft: 16 }}
-          disabled={!image}
+          onClick={handleSendAll}
+          style={{ marginLeft: 16, backgroundColor: '#4CAF50', color: 'white', padding: '8px 16px', borderRadius: '4px', border: 'none' }}
+          disabled={!image || isSending}
         >
-          Export as PNG
+          {isSending ? 'Sending...' : 'Send Test Emails (5)'}
         </button>
       </div>
+      {sendStatus && (
+        <div style={{ 
+          marginBottom: 8, 
+          padding: '8px', 
+          backgroundColor: sendStatus.startsWith('Error') ? '#ffebee' : '#e8f5e9',
+          borderRadius: '4px'
+        }}>
+          {sendStatus}
+        </div>
+      )}
       <Stage
         ref={stageRef}
         width={STAGE_WIDTH}
