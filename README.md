@@ -10,6 +10,9 @@ npm install react react-dom konva react-konva @types/react @types/react-dom
 # Install konva
 npm install konva react-konva
 
+# Install Resend
+npm install resend
+
 # Install other project dependencies
 npm install
 
