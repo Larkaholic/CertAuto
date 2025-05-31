@@ -1,5 +1,8 @@
 "use server";
 
+import { db } from "./lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+
 export async function sendBulkEmails(certificateImage?: string) {
   console.log("Server action called with image data length:", certificateImage?.length);
   
@@ -16,22 +19,40 @@ export async function sendBulkEmails(certificateImage?: string) {
     const { Resend } = require('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const TARGET_EMAIL = 'orillos.lark@gmail.com';
+    // Fetch emails from Firestore
+    let targetEmails: string[] = [];
+    try {
+      const snapshot = await getDocs(collection(db, "emails"));
+      targetEmails = snapshot.docs.map(doc => doc.data().email).filter(Boolean);
+      console.log("Target emails from Firestore:", targetEmails); // <-- Add this line
+    } catch (fetchError) {
+      console.error("Failed to fetch emails from Firestore:", fetchError);
+      return { success: false, message: "Failed to fetch emails from Firestore." };
+    }
 
-    // If we don't have a certificate image, send a test email
+    if (targetEmails.length === 0) {
+      return { success: false, message: "No target emails found in Firestore." };
+    }
+
+    // If we don't have a certificate image, send a test email to all
     if (!certificateImage) {
       console.log("No certificate image provided, sending test email only");
-      const testResponse = await resend.emails.send({
-        from: 'CertAuto <onboarding@resend.dev>',
-        to: TARGET_EMAIL,
-        subject: 'Email Service Test',
-        html: `<p>This is a test email to verify the email service is working.</p>
-               <p>Timestamp: ${new Date().toISOString()}</p>`,
-      });
-      
+      const responses = [];
+      for (const email of targetEmails) {
+        const testResponse = await resend.emails.send({
+          from: 'CertAuto <onboarding@resend.dev>',
+          to: email,
+          subject: 'Email Service Test',
+          html: `<p>This is a test email to verify the email service is working.</p>
+                 <p>Timestamp: ${new Date().toISOString()}</p>`,
+        });
+        responses.push(testResponse);
+        // Wait 500ms between sends to avoid rate limits
+        await new Promise(res => setTimeout(res, 500));
+      }
       return { 
         success: true, 
-        message: "Test email sent successfully, but no certificate was provided" 
+        message: `Test email sent successfully to ${targetEmails.length} recipients, but no certificate was provided` 
       };
     }
 
@@ -46,30 +67,27 @@ export async function sendBulkEmails(certificateImage?: string) {
       }
     }
     
-    for (let idx = 0; idx < 5; idx++) {
-      console.log(`Sending email ${idx + 1} of 5...`);
-      
+    for (const email of targetEmails) {
+      console.log(`Sending certificate email to: ${email}`);
       const response = await resend.emails.send({
         from: 'CertAuto <onboarding@resend.dev>',
-        to: TARGET_EMAIL,
-        subject: `Your Certificate #${idx + 1}`,
+        to: email,
+        subject: `Your Certificate`,
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px;">
             <h2>Your Certificate</h2>
-            <p>Congratulations! Here is your certificate (email ${idx + 1} of 5).</p>
+            <p>Congratulations! Here is your certificate.</p>
             <p>Please see the attached certificate image.</p>
             <p>Thank you for your participation!</p>
           </div>
         `,
         attachments: [
           {
-            filename: `certificate-${idx + 1}.png`,
+            filename: `certificate.png`,
             content: base64Data,
           },
         ],
       });
-      
-      console.log(`Email ${idx + 1} response:`, response);
       responses.push(response);
       
       // Wait 500ms between sends to avoid rate limits

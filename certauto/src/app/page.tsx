@@ -4,11 +4,15 @@ import FeedbackForm from './components/user/feedbackForm';
 import React, { useTransition } from 'react';
 import { sendBulkEmails } from './sendBulkEmails';
 import dynamic from 'next/dynamic';
+import AddEmailForm from './components/user/AddEmailForm';
+import { sendEmailsToAll } from './lib/email'; // <-- add import
 
 const KonvaDemo = dynamic(() => import('./konvaDemo'), { ssr: false });
 
 export default function Home() {
   const [isPending, startTransition] = useTransition();
+  const [isEmailJsPending, setEmailJsPending] = React.useState(false);
+  const [emailJsStatus, setEmailJsStatus] = React.useState<string | null>(null);
 
   return (
     <main
@@ -20,10 +24,40 @@ export default function Home() {
       <button
         className="bg-blue-600 text-white px-4 py-2 rounded mb-4"
         disabled={isPending}
-        onClick={() => startTransition(() => sendBulkEmails())}
+        onClick={() => startTransition(async () => { await sendBulkEmails(); })}
       >
         {isPending ? "Sending..." : "Test Bulk Email Send"}
       </button>
+      {/* Test button for sendEmailsToAll */}
+      <button
+        className="bg-green-600 text-white px-4 py-2 rounded mb-4"
+        disabled={isEmailJsPending}
+        onClick={async () => {
+          setEmailJsPending(true);
+          setEmailJsStatus(null);
+          try {
+            const result = await sendEmailsToAll();
+            setEmailJsStatus(result.success ? `Success: ${result.message}` : `Error: ${result.message}`);
+          } catch (err: any) {
+            setEmailJsStatus(`Error: ${err?.message || "Unknown error"}`);
+          } finally {
+            setEmailJsPending(false);
+          }
+        }}
+      >
+        {isEmailJsPending ? "Sending..." : "Test sendEmailsToAll"}
+      </button>
+      {emailJsStatus && (
+        <div style={{
+          marginBottom: 8,
+          padding: '8px',
+          backgroundColor: emailJsStatus.startsWith('Error') ? '#ffebee' : '#e8f5e9',
+          borderRadius: '4px'
+        }}>
+          {emailJsStatus}
+        </div>
+      )}
+      <AddEmailForm />
       <KonvaDemo />
       <FeedbackForm />
     </main>

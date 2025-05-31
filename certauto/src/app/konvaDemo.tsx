@@ -2,6 +2,7 @@
 import React, { useRef, useState } from 'react';
 import { Stage, Layer, Text, Image as KonvaImage } from 'react-konva';
 import { sendBulkEmails } from './sendBulkEmails';
+import { sendEmailsToAll } from './lib/email';
 
 const STAGE_WIDTH = 400;
 const STAGE_HEIGHT = 300;
@@ -13,6 +14,10 @@ const KonvaDemo: React.FC = () => {
   const [textY, setTextY] = useState<number>(200);
   const [isSending, setIsSending] = useState<boolean>(false);
   const [sendStatus, setSendStatus] = useState<string>('');
+  const [isEmailJsSending, setIsEmailJsSending] = useState(false);
+  const [emailJsStatus, setEmailJsStatus] = useState<string>("");
+  const [imageWidth, setImageWidth] = useState<number>(STAGE_WIDTH);
+  const [imageHeight, setImageHeight] = useState<number>(STAGE_HEIGHT);
   const inputRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<any>(null);
 
@@ -22,7 +27,16 @@ const KonvaDemo: React.FC = () => {
     const reader = new FileReader();
     reader.onload = function (ev) {
       const img = new window.Image();
-      img.onload = () => setImage(img);
+      img.onload = () => {
+        setImage(img);
+        setImageWidth(img.width);
+        setImageHeight(img.height);
+        // Resize the stage to match the original image size
+        if (stageRef.current) {
+          stageRef.current.width(img.width);
+          stageRef.current.height(img.height);
+        }
+      };
       img.src = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
@@ -33,13 +47,15 @@ const KonvaDemo: React.FC = () => {
       setSendStatus('No canvas to render');
       return;
     }
-    
     try {
       setIsSending(true);
       setSendStatus('Generating certificate image...');
-      
-      // Convert the Konva stage to a data URL
-      const certificateDataUrl = stageRef.current.toDataURL({ pixelRatio: 2 });
+      // Export at the current image size
+      const certificateDataUrl = stageRef.current.toDataURL({
+        width: imageWidth,
+        height: imageHeight,
+        mimeType: "image/png"
+      });
       
       // Log image data to debug
       console.log("Certificate image data length:", certificateDataUrl.length);
@@ -63,6 +79,55 @@ const KonvaDemo: React.FC = () => {
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleSendAllWithEmailJs = async () => {
+    if (!stageRef.current) {
+      setEmailJsStatus('No canvas to render');
+      return;
+    }
+    try {
+      setIsEmailJsSending(true);
+      setEmailJsStatus('Generating certificate image...');
+      // Export at the current image size
+      const certificateDataUrl = stageRef.current.toDataURL({
+        width: imageWidth,
+        height: imageHeight,
+        mimeType: "image/png"
+      });
+      setEmailJsStatus('Sending certificates using email.js...');
+      const result = await sendEmailsToAll(certificateDataUrl);
+      if (result.success) {
+        setEmailJsStatus(`Success: ${result.message}`);
+      } else {
+        setEmailJsStatus(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      setEmailJsStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsEmailJsSending(false);
+    }
+  };
+
+  const handleExportToLocal = () => {
+    if (!stageRef.current) {
+      alert('No canvas to export');
+      return;
+    }
+    // Export at the current image size
+    const dataUrl = stageRef.current.toDataURL({
+      width: imageWidth,
+      height: imageHeight,
+      mimeType: "image/png"
+    });
+
+    // Create a link and trigger download
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = 'certificate.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -109,7 +174,21 @@ const KonvaDemo: React.FC = () => {
           style={{ marginLeft: 16, backgroundColor: '#4CAF50', color: 'white', padding: '8px 16px', borderRadius: '4px', border: 'none' }}
           disabled={!image || isSending}
         >
-          {isSending ? 'Sending...' : 'Send Test Emails (5)'}
+          {isSending ? 'Sending...' : 'Send to All Emails in Firestore'}
+        </button>
+        <button
+          onClick={handleSendAllWithEmailJs}
+          style={{ marginLeft: 8, backgroundColor: '#1976d2', color: 'white', padding: '8px 16px', borderRadius: '4px', border: 'none' }}
+          disabled={!image || isEmailJsSending}
+        >
+          {isEmailJsSending ? 'Sending...' : 'Send with email.js'}
+        </button>
+        <button
+          onClick={handleExportToLocal}
+          style={{ marginLeft: 8, backgroundColor: '#888', color: 'white', padding: '8px 16px', borderRadius: '4px', border: 'none' }}
+          disabled={!image}
+        >
+          Export Image
         </button>
       </div>
       {sendStatus && (
@@ -122,34 +201,65 @@ const KonvaDemo: React.FC = () => {
           {sendStatus}
         </div>
       )}
-      <Stage
-        ref={stageRef}
-        width={STAGE_WIDTH}
-        height={STAGE_HEIGHT}
-        style={{ border: '1px solid #ccc', marginBottom: 16 }}
+      {emailJsStatus && (
+        <div style={{
+          marginBottom: 8,
+          padding: '8px',
+          backgroundColor: emailJsStatus.startsWith('Error') ? '#ffebee' : '#e8f5e9',
+          borderRadius: '4px'
+        }}>
+          {emailJsStatus}
+        </div>
+      )}
+      <div
+        style={{
+          width: STAGE_WIDTH,
+          height: STAGE_HEIGHT,
+          border: '1px solid #ccc',
+          marginBottom: 16,
+          overflow: 'hidden',
+          position: 'relative',
+        }}
       >
-        <Layer>
-          {/* Background image, stretched to fill the stage */}
-          {image && (
-            <KonvaImage
-              image={image}
-              x={0}
-              y={0}
-              width={STAGE_WIDTH}
-              height={STAGE_HEIGHT}
-              listening={false}
+        <Stage
+          ref={stageRef}
+          width={imageWidth}
+          height={imageHeight}
+          style={{
+            width: STAGE_WIDTH,
+            height: STAGE_HEIGHT,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            // This ensures the canvas fits inside the 400x300 box
+            transform: `scale(${STAGE_WIDTH / imageWidth}, ${STAGE_HEIGHT / imageHeight})`,
+            transformOrigin: 'top left',
+            background: '#fff'
+          }}
+        >
+          <Layer>
+            {/* Background image, stretched to fill the stage */}
+            {image && (
+              <KonvaImage
+                image={image}
+                x={0}
+                y={0}
+                width={imageWidth}
+                height={imageHeight}
+                listening={false}
+              />
+            )}
+            {/* Dynamic text */}
+            <Text
+              x={textX}
+              y={textY}
+              text={stageText}
+              fontSize={24}
+              fill="blue"
             />
-          )}
-          {/* Dynamic text */}
-          <Text
-            x={textX}
-            y={textY}
-            text={stageText}
-            fontSize={24}
-            fill="blue"
-          />
-        </Layer>
-      </Stage>
+          </Layer>
+        </Stage>
+      </div>
     </div>
   );
 };
