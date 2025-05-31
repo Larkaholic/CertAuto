@@ -13,6 +13,9 @@ npm install konva react-konva
 # Install Resend
 npm install resend
 
+# Install emailJS
+npm install @emailjs/browser
+
 # Install other project dependencies
 npm install
 
