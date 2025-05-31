@@ -4,7 +4,7 @@ import FeedbackForm from './components/user/feedbackForm';
 import React, { useTransition } from 'react';
 import { sendBulkEmails } from './sendBulkEmails';
 import dynamic from 'next/dynamic';
-import AddEmailForm from './components/user/AddEmailForm';
+import AddEmailForm from './components/user/addEmailForm';
 import { sendEmailsToAll } from './lib/email'; // <-- add import
 
 const KonvaDemo = dynamic(() => import('./konvaDemo'), { ssr: false });
