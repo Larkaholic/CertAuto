@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import AddEmailForm from './components/user/addEmailForm';
 import { sendEmailsToAll } from './lib/email'; // <-- add import
 
+// Dynamically import the KonvaDemo component with SSR disabled
 const KonvaDemo = dynamic(() => import('./konvaDemo'), { ssr: false });
 
 export default function Home() {
@@ -58,6 +59,7 @@ export default function Home() {
         </div>
       )}
       <AddEmailForm />
+      {/* KonvaDemo will only be loaded client-side */}
       <KonvaDemo />
       <FeedbackForm />
     </main>

@@ -1,6 +1,13 @@
 "use client";
 import React, { useRef, useState } from 'react';
-import { Stage, Layer, Text, Image as KonvaImage } from 'react-konva';
+import dynamic from 'next/dynamic';
+
+// Dynamically import Konva components with SSR disabled
+const Stage = dynamic(() => import('react-konva').then((mod) => mod.Stage), { ssr: false });
+const Layer = dynamic(() => import('react-konva').then((mod) => mod.Layer), { ssr: false });
+const Text = dynamic(() => import('react-konva').then((mod) => mod.Text), { ssr: false });
+const KonvaImage = dynamic(() => import('react-konva').then((mod) => mod.Image), { ssr: false });
+
 import { sendBulkEmails } from './sendBulkEmails';
 import { sendEmailsToAll } from './lib/email';
 
@@ -231,7 +238,6 @@ const KonvaDemo: React.FC = () => {
             position: 'absolute',
             top: 0,
             left: 0,
-            // This ensures the canvas fits inside the 400x300 box
             transform: `scale(${STAGE_WIDTH / imageWidth}, ${STAGE_HEIGHT / imageHeight})`,
             transformOrigin: 'top left',
             background: '#fff'
